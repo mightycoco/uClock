@@ -38,7 +38,6 @@ IntervalTimer _uclockTimer;
 // Seedstudio XIAO M0 port
 #if defined(SEEED_XIAO_M0)
 #include <TimerTCC0.h>
-TimerTCC0 _uclockTimer;
 #endif
 
 #if defined(ARDUINO_ARCH_AVR)
@@ -66,8 +65,8 @@ void uclockInitTimer()
 {
 	// begin at 120bpm (20833us)
 	const uint16_t init_clock = 20833;
-	ATOMIC(
 	#if defined(TEENSYDUINO)
+	ATOMIC(
 		_uclockTimer.begin(uclockISR, init_clock); 
 
 		// Set the interrupt priority level, controlling which other interrupts
@@ -76,15 +75,18 @@ void uclockInitTimer()
 		// As a general guideline, interrupt routines that run longer should be given 
 		// lower priority (higher numerical values).
 		_uclockTimer.priority(0);
+	)
 	#endif
 
 	#if defined(SEEED_XIAO_M0)
-		_uclockTimer.initialize(init_clock);
+		Serial.println("uClock::init");
+		TimerTcc0.initialize(init_clock);
 
 		// attach to generic uclock ISR
-		_uclockTimer.attachInterrupt(uclockISR);
+		Serial.println("uClock::attachInterrupt");
+		TimerTcc0.attachInterrupt(uclockISR);
+		Serial.println("uClock::init done");
 	#endif
-	)
 }
 #endif
 
@@ -121,7 +123,7 @@ uClockClass::uClockClass()
 	onClockStopCallback = NULL;
 
 	// first interval calculus
-	setTempo(tempo);
+	//setTempo(tempo);
 }
 
 void uClockClass::init() 
@@ -210,7 +212,7 @@ void uClockClass::setTimerTempo(float bpm)
 	#endif
 
 	#if defined(SEEED_XIAO_M0)
-		_uclockTimer.setPeriod(tick_us_interval);
+		TimerTcc0.setPeriod(tick_us_interval);
 	#endif
 	)
 #endif
