@@ -1,10 +1,10 @@
 /*!
  *  @file       uClock.cpp
  *  Project     BPM clock generator for Arduino
- *  @brief      A Library to implement BPM clock tick calls using hardware timer interruption. Tested on ATmega168/328, ATmega16u4/32u4 and ATmega2560 and Teensy LC.
- *  @version    1.0.0
+ *  @brief      A Library to implement BPM clock tick calls using hardware timer interruption. Tested on ATmega168/328, ATmega16u4/32u4, ATmega2560, Teensy ARM boards and Seedstudio XIAO M0
+ *  @version    1.1.0
  *  @author     Romulo Silva
- *  @date       01/04/2022
+ *  @date       04/03/2022
  *  @license    MIT - (c) 2022 - Romulo Silva - contact@midilab.co
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -44,7 +44,7 @@ IntervalTimer _uclockTimer;
 void uclockInitTimer()
 {
 	ATOMIC(
-		// Timer1 init
+		// 16bits Timer1 init
 		// begin at 120bpm (48.0007680122882 Hz)
 		TCCR1A = 0; // set entire TCCR1A register to 0
 		TCCR1B = 0; // same for TCCR1B
@@ -65,7 +65,6 @@ void uclockInitTimer()
 {
 	// begin at 120bpm (20833us)
 	const uint16_t init_clock = 20833;
-	ATOMIC(
 	#if defined(TEENSYDUINO)
 		_uclockTimer.begin(uclockISR, init_clock); 
 
@@ -83,7 +82,6 @@ void uclockInitTimer()
 		// attach to generic uclock ISR
 		TimerTcc0.attachInterrupt(uclockISR);
 	#endif
-	)
 }
 #endif
 
@@ -168,10 +166,11 @@ void uClockClass::pause()
 void uClockClass::setTimerTempo(float bpm) 
 {
 	// 96 ppqn resolution
-	tick_us_interval = (60000000 / 24 / bpm);
-	tick_hertz_interval = 1/((float)tick_us_interval/1000000);
+	uint32_t tick_us_interval = (60000000 / 24 / bpm);
 
 #if defined(ARDUINO_ARCH_AVR)
+	float tick_hertz_interval = 1/((float)tick_us_interval/1000000);
+
 	uint32_t ocr;
 	uint8_t tccr = 0;
 
@@ -203,7 +202,6 @@ void uClockClass::setTimerTempo(float bpm)
 		TCCR1B |= tccr;
 	)
 #else
-	ATOMIC(
 	#if defined(TEENSYDUINO)
 		_uclockTimer.update(tick_us_interval);
 	#endif
@@ -211,7 +209,6 @@ void uClockClass::setTimerTempo(float bpm)
 	#if defined(SEEED_XIAO_M0)
 		TimerTcc0.setPeriod(tick_us_interval);
 	#endif
-	)
 #endif
 }
 
@@ -225,9 +222,12 @@ void uClockClass::setTempo(float bpm)
 		return;
 	}
 
-	setTimerTempo(bpm);
+	ATOMIC(
+		tempo = bpm
+	)
 
-	tempo = bpm;
+	setTimerTempo(bpm);
+	
 }
 
 float inline uClockClass::freqToBpm(uint32_t freq)
@@ -373,7 +373,7 @@ void uClockClass::handleTimerInt()
 		if (bpm != tempo) {
 			if (bpm >= MIN_BPM && bpm <= MAX_BPM) {
 				tempo = bpm;
-				setTimerTempo(tempo);
+				setTimerTempo(bpm);
 			}
 		}
 	}
